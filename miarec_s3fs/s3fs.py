@@ -1,24 +1,12 @@
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
 
-__all__ = ["S3FS"]
-
-import contextlib
 from datetime import datetime
 import io
 import itertools
 import os
-from ssl import SSLError
-import tempfile
 import threading
 import mimetypes
 
 import boto3
-from botocore.exceptions import ClientError, EndpointConnectionError
-
-import six
-from six import text_type
 
 from fs import ResourceType
 from fs.base import FS
@@ -30,168 +18,12 @@ from fs.path import basename, dirname, forcedir, join, normpath, relpath
 from fs.time import datetime_to_epoch
 
 
-def _make_repr(class_name, *args, **kwargs):
-    """
-    Generate a repr string.
-
-    Positional arguments should be the positional arguments used to
-    construct the class. Keyword arguments should consist of tuples of
-    the attribute value and default. If the value is the default, then
-    it won't be rendered in the output.
-
-    Here's an example::
-
-        def __repr__(self):
-            return make_repr('MyClass', 'foo', name=(self.name, None))
-
-    The output of this would be something line ``MyClass('foo',
-    name='Will')``.
-
-    """
-    arguments = [repr(arg) for arg in args]
-    arguments.extend(
-        "{}={!r}".format(name, value)
-        for name, (value, default) in sorted(kwargs.items())
-        if value != default
-    )
-    return "{}({})".format(class_name, ", ".join(arguments))
+from .s3file import S3File
+from .helpers import _make_repr
+from .errors import s3errors
 
 
-class S3File(io.IOBase):
-    """Proxy for a S3 file."""
 
-    @classmethod
-    def factory(cls, filename, mode, on_close):
-        """Create a S3File backed with a temporary file."""
-        _temp_file = tempfile.TemporaryFile()
-        proxy = cls(_temp_file, filename, mode, on_close=on_close)
-        return proxy
-
-    def __repr__(self):
-        return _make_repr(
-            self.__class__.__name__, self.__filename, text_type(self.__mode)
-        )
-
-    def __init__(self, f, filename, mode, on_close=None):
-        self._f = f
-        self.__filename = filename
-        self.__mode = mode
-        self._on_close = on_close
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
-
-    @property
-    def raw(self):
-        return self._f
-
-    def close(self):
-        if self._on_close is not None:
-            self._on_close(self)
-
-    @property
-    def closed(self):
-        return self._f.closed
-
-    def fileno(self):
-        return self._f.fileno()
-
-    def flush(self):
-        return self._f.flush()
-
-    def isatty(self):
-        return self._f.asatty()
-
-    def readable(self):
-        return self.__mode.reading
-
-    def readline(self, limit=-1):
-        return self._f.readline(limit)
-
-    def readlines(self, hint=-1):
-        if hint == -1:
-            return self._f.readlines(hint)
-        else:
-            size = 0
-            lines = []
-            for line in iter(self._f.readline, b""):
-                lines.append(line)
-                size += len(line)
-                if size > hint:
-                    break
-            return lines
-
-    def seek(self, offset, whence=os.SEEK_SET):
-        if whence not in (os.SEEK_CUR, os.SEEK_END, os.SEEK_SET):
-            raise ValueError("invalid value for 'whence'")
-        self._f.seek(offset, whence)
-        return self._f.tell()
-
-    def seekable(self):
-        return True
-
-    def tell(self):
-        return self._f.tell()
-
-    def writable(self):
-        return self.__mode.writing
-
-    def writelines(self, lines):
-        return self._f.writelines(lines)
-
-    def read(self, n=-1):
-        if not self.__mode.reading:
-            raise IOError("not open for reading")
-        return self._f.read(n)
-
-    def readall(self):
-        return self._f.readall()
-
-    def readinto(self, b):
-        return self._f.readinto()
-
-    def write(self, b):
-        if not self.__mode.writing:
-            raise IOError("not open for reading")
-        self._f.write(b)
-        return len(b)
-
-    def truncate(self, size=None):
-        if size is None:
-            size = self._f.tell()
-        self._f.truncate(size)
-        return size
-
-
-@contextlib.contextmanager
-def s3errors(path):
-    """Translate S3 errors to FSErrors."""
-    try:
-        yield
-    except ClientError as error:
-        _error = error.response.get("Error", {})
-        error_code = _error.get("Code", None)
-        response_meta = error.response.get("ResponseMetadata", {})
-        http_status = response_meta.get("HTTPStatusCode", 200)
-        error_msg = _error.get("Message", None)
-        if error_code == "NoSuchBucket":
-            raise errors.ResourceError(path, exc=error, msg=error_msg)
-        if http_status == 404:
-            raise errors.ResourceNotFound(path)
-        elif http_status == 403:
-            raise errors.PermissionDenied(path=path, msg=error_msg)
-        else:
-            raise errors.OperationFailed(path=path, exc=error)
-    except SSLError as error:
-        raise errors.OperationFailed(path, exc=error)
-    except EndpointConnectionError as error:
-        raise errors.RemoteConnectionError(path, exc=error, msg="{}".format(error))
-
-
-@six.python_2_unicode_compatible
 class S3FS(FS):
     """
     Construct an Amazon S3 filesystem for
@@ -356,8 +188,6 @@ class S3FS(FS):
         upload_args = self.upload_args.copy() if self.upload_args else {}
         if "ContentType" not in upload_args:
             mime_type, _encoding = mimetypes.guess_type(key)
-            if six.PY2 and mime_type is not None:
-                mime_type = mime_type.decode("utf-8", "replace")
             upload_args["ContentType"] = mime_type or "binary/octet-stream"
         return upload_args
 

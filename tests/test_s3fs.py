@@ -2,10 +2,10 @@ from __future__ import unicode_literals
 
 import unittest
 
-from nose.plugins.attrib import attr
+# from nose.plugins.attrib import attr
 
 from fs.test import FSTestCases
-from fs_s3fs import S3FS
+from miarec_s3fs import S3FS
 
 import boto3
 
@@ -28,7 +28,7 @@ class TestS3FS(FSTestCases, unittest.TestCase):
             self.client.delete_object(Bucket=self.bucket_name, Key=obj["Key"])
 
 
-@attr("slow")
+#@attr("slow")
 class TestS3FSSubDir(FSTestCases, unittest.TestCase):
     """Test S3FS implementation from dir_path."""
 
