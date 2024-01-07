@@ -16,6 +16,8 @@ The code was modified by MiaRec team to fullfill out needs.
 
 2. Opener is not implemented. Use explicit constructor instead.
 
+3. Unit tests are run with [moto](https://github.com/getmoto/moto)
+
 
 ## Installing
 
@@ -145,6 +147,26 @@ URL from an S3 object. Here's an example:
 'https://fsexample.s3.amazonaws.com//foo?AWSAccessKeyId=AKIAIEZZDQU72WQP3JUA&Expires=1501939084&Signature=4rfDuqVgmvILjtTeYOJvyIXRMvs%3D'
 ```
 
+## Testing
+
+Automated unit tests are run on [GitHub Actions](https://github.com/miarec/miarec_s3fs/actions)
+
+To run the tests locally, do the following.
+
+Install Docker on local machine.
+
+Create activate python virtual environment:
+
+    python -m vevn venv
+    source venv\bin\activate
+
+Install the project and test dependencies:
+
+    pip install -e ".[test]"
+
+Run tests:
+
+    pytest
 
 ## Documentation
 

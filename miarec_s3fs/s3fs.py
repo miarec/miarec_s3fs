@@ -350,7 +350,7 @@ class S3FS(FS):
             _obj.put(**self._get_upload_args(_key))
         return SubFS(self, path)
 
-    def openbin(self, path, mode="r", buffering=-1, **options):
+    def openbin(self, path, mode="rb", buffering=-1, **options):
         _mode = Mode(mode)
         _mode.validate_bin()
         self.check()
@@ -391,7 +391,11 @@ class S3FS(FS):
                 if info.is_dir:
                     raise errors.FileExpected(path)
 
-            s3file = S3File.factory(path, _mode, on_close=on_close_create)
+            s3file = S3File.factory(
+                path, 
+                _mode.to_platform_bin(), 
+                on_close=on_close_create
+            )
             if _mode.appending:
                 try:
                     with s3errors(path):
@@ -428,7 +432,11 @@ class S3FS(FS):
             finally:
                 s3file.raw.close()
 
-        s3file = S3File.factory(path, _mode, on_close=on_close)
+        s3file = S3File.factory(
+            path, 
+            _mode.to_platform_bin(), 
+            on_close=on_close
+        )
         with s3errors(path):
             self.client.download_fileobj(
                 self._bucket_name, _key, s3file.raw, ExtraArgs=self.download_args
@@ -605,7 +613,7 @@ class S3FS(FS):
                 file, self._bucket_name, _key, ExtraArgs=self._get_upload_args(_key)
             )
 
-    def copy(self, src_path, dst_path, overwrite=False):
+    def copy(self, src_path, dst_path, overwrite=False, preserve_time=False):
         if not overwrite and self.exists(dst_path):
             raise errors.DestinationExists(dst_path)
         _src_path = self.validatepath(src_path)
@@ -627,8 +635,8 @@ class S3FS(FS):
                 raise errors.FileExpected(src_path)
             raise
 
-    def move(self, src_path, dst_path, overwrite=False):
-        self.copy(src_path, dst_path, overwrite=overwrite)
+    def move(self, src_path, dst_path, overwrite=False, preserve_time=False):
+        self.copy(src_path, dst_path, overwrite=overwrite, preserve_time=preserve_time)
         self.remove(src_path)
 
     def geturl(self, path, purpose="download"):

@@ -1,51 +1,11 @@
-from __future__ import unicode_literals
-
+import os
 import unittest
-
-# from nose.plugins.attrib import attr
+from moto import mock_s3
 
 from fs.test import FSTestCases
 from miarec_s3fs import S3FS
 
 import boto3
-
-
-class TestS3FS(FSTestCases, unittest.TestCase):
-    """Test S3FS implementation from dir_path."""
-
-    bucket_name = "fsexample"
-    s3 = boto3.resource("s3")
-    client = boto3.client("s3")
-
-    def make_fs(self):
-        self._delete_bucket_contents()
-        return S3FS(self.bucket_name)
-
-    def _delete_bucket_contents(self):
-        response = self.client.list_objects(Bucket=self.bucket_name)
-        contents = response.get("Contents", ())
-        for obj in contents:
-            self.client.delete_object(Bucket=self.bucket_name, Key=obj["Key"])
-
-
-#@attr("slow")
-class TestS3FSSubDir(FSTestCases, unittest.TestCase):
-    """Test S3FS implementation from dir_path."""
-
-    bucket_name = "fsexample"
-    s3 = boto3.resource("s3")
-    client = boto3.client("s3")
-
-    def make_fs(self):
-        self._delete_bucket_contents()
-        self.s3.Object(self.bucket_name, "subdirectory").put()
-        return S3FS(self.bucket_name, dir_path="subdirectory")
-
-    def _delete_bucket_contents(self):
-        response = self.client.list_objects(Bucket=self.bucket_name)
-        contents = response.get("Contents", ())
-        for obj in contents:
-            self.client.delete_object(Bucket=self.bucket_name, Key=obj["Key"])
 
 
 class TestS3FSHelpers(unittest.TestCase):
@@ -77,3 +37,55 @@ class TestS3FSHelpers(unittest.TestCase):
             s3._get_upload_args("unknown.unknown"),
             {"ACL": "acl", "CacheControl": "cc", "ContentType": "binary/octet-stream"},
         )
+
+
+class S3FSTestCases(FSTestCases):
+    """Base class that initializes S3 testing environment with Moto mocking library"""
+
+    bucket_name = "testing"
+
+    def setUp(self):
+        super().setUp()
+
+        # Mocked AWS Credentials for moto
+        # This will elimitate a posibility of mutating real AWS environment
+        os.environ["AWS_ACCESS_KEY_ID"] = "testing"
+        os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
+        os.environ["AWS_SECURITY_TOKEN"] = "testing"
+        os.environ["AWS_SESSION_TOKEN"] = "testing"
+        os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+
+        # Mock S3 with Moto
+        self.mock_s3 = mock_s3()
+        self.mock_s3.start()
+
+        self.s3 = boto3.resource("s3")
+        self.client = boto3.client("s3")
+
+        # Create a testing bucket
+        bucket = self.s3.Bucket(self.bucket_name)
+        bucket.create()
+
+
+    def tearDown(self):
+        self.mock_s3.stop()
+        super().tearDown()
+
+
+class TestS3FS(S3FSTestCases, unittest.TestCase):
+    """Test S3FS implementation in a root path"""
+
+    def make_fs(self):
+        return S3FS(self.bucket_name)
+
+
+class TestS3FSSubDir(S3FSTestCases, unittest.TestCase):
+    """Test S3FS implementation in a sub-directory"""
+
+    def setUp(self):
+        super().setUp()
+        self.s3.Object(self.bucket_name, "subdirectory").put()
+
+    def make_fs(self):
+        return S3FS(self.bucket_name, dir_path="subdirectory")
+
