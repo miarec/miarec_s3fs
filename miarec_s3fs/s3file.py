@@ -38,7 +38,13 @@ class S3File(io.IOBase):
     def raw(self):
         return self._f
 
+    def __del__(self):
+        # Close the file when this object is destroyed by garbage collector
+        self.close()
+
     def close(self):
+        if self.closed:
+            return
         if self._on_close is not None:
             self._on_close(self)
 
