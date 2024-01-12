@@ -196,10 +196,16 @@ class S3FS(FS):
         return upload_args
 
     @property
+    def s3_session(self):
+        if not hasattr(self._tlocal, 's3_session'):
+            self._tlocal.s3_session = boto3.Session()
+        return self._tlocal.s3_session
+
+    @property
     def s3(self):
         config = Config(**self.config_args) if self.config_args else None
         if not hasattr(self._tlocal, "s3"):
-            self._tlocal.s3 = boto3.resource(
+            self._tlocal.s3 = self.s3_session.resource(
                 "s3",
                 region_name=self.region,
                 aws_access_key_id=self.aws_access_key_id,
@@ -214,7 +220,7 @@ class S3FS(FS):
     def client(self):
         if not hasattr(self._tlocal, "client"):
             config = Config(**self.config_args) if self.config_args else None
-            self._tlocal.client = boto3.client(
+            self._tlocal.client = self.s3_session.client(
                 "s3",
                 region_name=self.region,
                 aws_access_key_id=self.aws_access_key_id,
