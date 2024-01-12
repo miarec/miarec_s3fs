@@ -7,6 +7,7 @@ import threading
 import mimetypes
 
 import boto3
+from botocore.config import Config
 
 from fs import ResourceType
 from fs.base import FS
@@ -53,7 +54,7 @@ class S3FS(FS):
         for details.
     :param dict download_args: Dictionary of extra arguments passed to
         the S3 client.
-    :param dict config: Advanced S3 client configuration options.
+    :param dict config_args: Advanced S3 client configuration options.
         See https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
@@ -110,7 +111,7 @@ class S3FS(FS):
         acl=None,
         upload_args=None,
         download_args=None,
-        config=None,
+        config_args=None,
     ):
         _creds = (aws_access_key_id, aws_secret_access_key)
         if any(_creds) and not all(_creds):
@@ -137,7 +138,7 @@ class S3FS(FS):
                 upload_args["ACL"] = acl
         self.upload_args = upload_args
         self.download_args = download_args
-        self.config = config
+        self.config_args = config_args
         super(S3FS, self).__init__()
 
     def __repr__(self):
@@ -196,6 +197,7 @@ class S3FS(FS):
 
     @property
     def s3(self):
+        config = Config(**self.config_args) if self.config_args else None
         if not hasattr(self._tlocal, "s3"):
             self._tlocal.s3 = boto3.resource(
                 "s3",
@@ -204,13 +206,14 @@ class S3FS(FS):
                 aws_secret_access_key=self.aws_secret_access_key,
                 aws_session_token=self.aws_session_token,
                 endpoint_url=self.endpoint_url,
-                config=self.config,
+                config=config,
             )
         return self._tlocal.s3
 
     @property
     def client(self):
         if not hasattr(self._tlocal, "client"):
+            config = Config(**self.config_args) if self.config_args else None
             self._tlocal.client = boto3.client(
                 "s3",
                 region_name=self.region,
@@ -218,7 +221,7 @@ class S3FS(FS):
                 aws_secret_access_key=self.aws_secret_access_key,
                 aws_session_token=self.aws_session_token,
                 endpoint_url=self.endpoint_url,
-                config=self.config,
+                config=config,
             )
         return self._tlocal.client
 
