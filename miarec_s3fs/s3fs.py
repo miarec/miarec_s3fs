@@ -466,7 +466,8 @@ class S3FS(FS):
             info = self.getinfo(path)
             if info.is_dir:
                 raise errors.FileExpected(path)
-        self.client.delete_object(Bucket=self._bucket_name, Key=_key)
+        with s3errors(path):
+            self.client.delete_object(Bucket=self._bucket_name, Key=_key)
 
     def isempty(self, path):
         self.check()
