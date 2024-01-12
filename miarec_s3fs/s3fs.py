@@ -53,7 +53,8 @@ class S3FS(FS):
         for details.
     :param dict download_args: Dictionary of extra arguments passed to
         the S3 client.
-
+    :param dict config: Advanced S3 client configuration options.
+        See https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
     _meta = {
@@ -109,6 +110,7 @@ class S3FS(FS):
         acl=None,
         upload_args=None,
         download_args=None,
+        config=None,
     ):
         _creds = (aws_access_key_id, aws_secret_access_key)
         if any(_creds) and not all(_creds):
@@ -135,6 +137,7 @@ class S3FS(FS):
                 upload_args["ACL"] = acl
         self.upload_args = upload_args
         self.download_args = download_args
+        self.config = config
         super(S3FS, self).__init__()
 
     def __repr__(self):
@@ -201,6 +204,7 @@ class S3FS(FS):
                 aws_secret_access_key=self.aws_secret_access_key,
                 aws_session_token=self.aws_session_token,
                 endpoint_url=self.endpoint_url,
+                config=self.config,
             )
         return self._tlocal.s3
 
@@ -214,6 +218,7 @@ class S3FS(FS):
                 aws_secret_access_key=self.aws_secret_access_key,
                 aws_session_token=self.aws_session_token,
                 endpoint_url=self.endpoint_url,
+                config=self.config,
             )
         return self._tlocal.client
 
