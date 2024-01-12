@@ -643,6 +643,7 @@ class S3FS(FS):
                     Bucket=self._bucket_name,
                     Key=_dst_key,
                     CopySource={"Bucket": self._bucket_name, "Key": _src_key},
+                    **self._get_upload_args(_src_key)
                 )
         except errors.ResourceNotFound:
             if self.exists(src_path):
