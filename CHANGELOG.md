@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [v2024.1.1] - 2024-01-15
 
+[v2024.1.1]: https://github.com/miarec/miarec_s3fs/compare/v2024.1.0...v2024.1.1    
+
 ### Changed
 
 - Add unit tests with using Moto mock library
@@ -19,6 +21,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Convert boto-specific exceptions to `FSError` when error is encountered in `remove()` method
 
 ## [v2024.1.0] - 2024-01-06
+
+[v2024.1.1]: https://github.com/miarec/miarec_s3fs/compare/v1.1.1...v2024.1.0    
 
 - Forked from [fs-s3fs](https://github.com/PyFilesystem/s3fs) version 1.1.1 (released on 2019-08-14)
 - Rename package to `miarec_sftp` and re-organize files
