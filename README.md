@@ -1,6 +1,6 @@
 # miarec_s3fs
 
-[![Actions](https://img.shields.io/github/actions/workflow/status/miarec/miarec_s3fs/test.yml?branch=master&logo=github&style=flat-square&maxAge=300)](https://github.com/miarec/miarec_s3fs/actions)
+[![Actions](https://img.shields.io/github/actions/workflow/status/miarec/miarec_s3fs/test_and_release.yml?branch=master&logo=github&style=flat-square&maxAge=300)](https://github.com/miarec/miarec_s3fs/actions)
 
 MiaRec S3FS is a [PyFilesystem](https://www.pyfilesystem.org/) interface to
 Amazon S3 cloud storage.
