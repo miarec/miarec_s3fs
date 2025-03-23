@@ -545,9 +545,21 @@ class S3FS(FS):
         _s3_key = self._path_to_dir_key(_path)
         prefix_len = len(_s3_key)
 
-        info = self.getinfo(path)
-        if not info.is_dir:
-            raise errors.DirectoryExpected(path)
+
+        if self.strict:
+            info = self.getinfo(path)
+            if not info.is_dir:
+                raise errors.DirectoryExpected(path)
+        else:
+            try:
+                info = self.getinfo(path)
+                if not info.is_dir:
+                    raise errors.DirectoryExpected(path)
+            except errors.ResourceNotFound:
+                # A directory in S3 is a concept rather than a real object.
+                # If we get 404 here, we treat the path as a valid directory
+                pass
+
 
         paginator = self.client.get_paginator("list_objects")
         _paginate = paginator.paginate(
