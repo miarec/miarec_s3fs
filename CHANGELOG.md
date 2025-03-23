@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [v2025.3.23] - 2025-03-23
+
+[v2025.3.23]: https://github.com/miarec/miarec_s3fs/compare/v2024.1.1...v2025.3.23
+
+### Changed
+
+- Improve scandir() behavior when strict mode is disabled.
+    No need to create empty object for directories.
+
 
 ## [v2024.1.1] - 2024-01-15
 
