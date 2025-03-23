@@ -22,7 +22,7 @@ jobs:
           - '3.9'
           - '3.10'
           - '3.11'
-          - '3.12'
+          # - '3.12' # Temporary disabled because the main PyFilesystem library calls unittest.TestCase.assertRaisesRegexp, which was removed in Python 3.12.
     steps:
 
     - name: Checkout code
