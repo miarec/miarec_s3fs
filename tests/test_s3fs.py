@@ -1,6 +1,6 @@
 import os
 import unittest
-from moto import mock_s3
+from moto import mock_aws as mock_s3
 
 from fs.test import FSTestCases
 from miarec_s3fs import S3FS
