@@ -15,12 +15,14 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          # - '3.6'    # Python 3.6 is EOL. Not available on Ubuntu 22.04 in GitHub
-          - '3.7'
+          # Python 3.6, 3.7 are EOL. Not available on the latest Ubuntu in GitHub Actions.
+          # - '3.6'    
+          # - '3.7'
           - '3.8'
           - '3.9'
           - '3.10'
           - '3.11'
+          - '3.12'
     steps:
 
     - name: Checkout code
