@@ -168,17 +168,19 @@ class S3FS(FS):
     def _key_to_path(self, key):
         return key
 
-    def _get_object(self, path, key):
-        _key = key.rstrip("/")
+    def _get_object(self, path, key, try_dir=True):
         try:
             with s3errors(path):
-                obj = self.s3.Object(self._bucket_name, _key)
+                obj = self.s3.Object(self._bucket_name, key)
                 obj.load()
         except errors.ResourceNotFound:
-            with s3errors(path):
-                obj = self.s3.Object(self._bucket_name, _key + "/")
-                obj.load()
-                return obj
+            if try_dir and not key.endswith("/"):
+                with s3errors(path):
+                    obj = self.s3.Object(self._bucket_name, key + "/")
+                    obj.load()
+                    return obj
+            else:
+                raise
         else:
             return obj
 
@@ -257,10 +259,13 @@ class S3FS(FS):
 
     def isdir(self, path):
         _path = self.validatepath(path)
-        try:
-            return self._getinfo(_path).is_dir
-        except errors.ResourceNotFound:
-            return False
+        if self.strict:
+            try:
+                return self._getinfo(forcedir(_path)).is_dir
+            except errors.ResourceNotFound:
+                return False
+        else:
+            return _path.endswith("/") or _path == ""
 
     def getinfo(self, path, namespaces=None):
         self.check()
@@ -268,16 +273,18 @@ class S3FS(FS):
         _path = self.validatepath(path)
         _key = self._path_to_key(_path)
 
-        try:
-            dir_path = dirname(_path)
-            if dir_path != "/":
-                _dir_key = self._path_to_dir_key(dir_path)
-                with s3errors(path):
-                    obj = self.s3.Object(self._bucket_name, _dir_key)
-                    obj.load()
-        except errors.ResourceNotFound:
-            raise errors.ResourceNotFound(path)
-
+        if self.strict:
+            # Check the parent directory
+            # Disabled due to performance penalty and low value (c) MiaRec
+            try:
+                dir_path = dirname(_path)
+                if dir_path != "/":
+                    _dir_key = self._path_to_dir_key(dir_path)
+                    with s3errors(path):
+                        obj = self.s3.Object(self._bucket_name, _dir_key)
+                        obj.load()
+            except errors.ResourceNotFound:
+                raise errors.ResourceNotFound(path)
         if _path == "/":
             return Info(
                 {
@@ -286,7 +293,7 @@ class S3FS(FS):
                 }
             )
 
-        obj = self._get_object(path, _key)
+        obj = self._get_object(path, _key, try_dir=True)
         info = self._info_from_object(obj, namespaces)
         return Info(info)
 
@@ -303,7 +310,7 @@ class S3FS(FS):
                 }
             )
 
-        obj = self._get_object(path, _key)
+        obj = self._get_object(path, _key, try_dir=True)
         info = self._info_from_object(obj, namespaces)
         return Info(info)
 
@@ -336,16 +343,26 @@ class S3FS(FS):
 
         return _directory
 
+    def opendir(self, path, factory=None):
+        return super().opendir(forcedir(path), factory=factory)
+
     def makedir(self, path, permissions=None, recreate=False):
         self.check()
         _path = self.validatepath(path)
         _key = self._path_to_dir_key(_path)
 
-        if not self.isdir(dirname(_path)):
-            raise errors.ResourceNotFound(path)
+        if self.strict:
+            # Check existence of the parent directory (slow)
+            if not self.isdir(dirname(_path)):
+                raise errors.ResourceNotFound(path)
+
+        # Do we need to create a fake object for the directory? (c) MiaRec
+        # We probably can always return True from makedir()
+        # And isdir() should return True only if there are files under the path (slow).
+        # Or isdir() should always return True if path ends with "/"
 
         try:
-            self._getinfo(path)
+            self._getinfo(forcedir(path))
         except errors.ResourceNotFound:
             pass
         else:
@@ -381,13 +398,15 @@ class S3FS(FS):
                 finally:
                     s3file.raw.close()
 
-            try:
-                dir_path = dirname(_path)
-                if dir_path != "/":
-                    _dir_key = self._path_to_dir_key(dir_path)
-                    self._get_object(dir_path, _dir_key)
-            except errors.ResourceNotFound:
-                raise errors.ResourceNotFound(path)
+            if self.strict:
+                # Check of the parent directory is disabled due to performance penalty
+                try:
+                    dir_path = dirname(_path)
+                    if dir_path != "/":
+                        _dir_key = self._path_to_dir_key(dir_path)
+                        self._get_object(dir_path, _dir_key, try_dir=False)
+                except errors.ResourceNotFound:
+                    raise errors.ResourceNotFound(path)
 
             try:
                 info = self._getinfo(path)
@@ -460,6 +479,8 @@ class S3FS(FS):
             info = self.getinfo(path)
             if info.is_dir:
                 raise errors.FileExpected(path)
+        elif _path.endswith("/") or not _path:
+            raise errors.FileExpected(path)
         with s3errors(path):
             self.client.delete_object(Bucket=self._bucket_name, Key=_key)
 
@@ -481,13 +502,20 @@ class S3FS(FS):
         _path = self.validatepath(path)
         if _path == "/":
             raise errors.RemoveRootError()
-        info = self.getinfo(_path)
-        if not info.is_dir:
-            raise errors.DirectoryExpected(path)
+        if self.strict:
+            info = self.getinfo(_path)
+            if not info.is_dir:
+                raise errors.DirectoryExpected(path)
         if not self.isempty(path):
             raise errors.DirectoryNotEmpty(path)
         _key = self._path_to_dir_key(_path)
-        self.client.delete_object(Bucket=self._bucket_name, Key=_key)
+        try:
+            with s3errors(path):
+                self.client.delete_object(Bucket=self._bucket_name, Key=_key)
+        except errors.ResourceNotFound:
+            # Directory is a virtual concept in S3. 
+            # There can be a directory object with "/" and the end of name, but this is optional
+            pass   
 
     def setinfo(self, path, info):
         self.getinfo(path)
@@ -525,9 +553,9 @@ class S3FS(FS):
         _path = self.validatepath(path)
         if _path == "/":
             return True
-        _key = self._path_to_dir_key(_path)
+        _key = self._path_to_key(_path)
         try:
-            self._get_object(path, _key)
+            self._get_object(path, _key, try_dir=True)
         except errors.ResourceNotFound:
             return False
         else:
@@ -538,22 +566,10 @@ class S3FS(FS):
         namespaces = namespaces or ()
         _s3_key = self._path_to_dir_key(_path)
         prefix_len = len(_s3_key)
-
-
         if self.strict:
             info = self.getinfo(path)
             if not info.is_dir:
                 raise errors.DirectoryExpected(path)
-        else:
-            try:
-                info = self.getinfo(path)
-                if not info.is_dir:
-                    raise errors.DirectoryExpected(path)
-            except errors.ResourceNotFound:
-                # A directory in S3 is a concept rather than a real object.
-                # If we get 404 here, we treat the path as a valid directory
-                pass
-
 
         paginator = self.client.get_paginator("list_objects")
         _paginate = paginator.paginate(
