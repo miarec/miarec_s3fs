@@ -259,7 +259,7 @@ class S3FS(FS):
 
     def isdir(self, path):
         _path = self.validatepath(path)
-        if self.strict:
+        if self.strict or not _path.endswith("/"):
             try:
                 return self._getinfo(forcedir(_path)).is_dir
             except errors.ResourceNotFound:
