@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [v2025.3.24] - 2025-03-24
+
+[v2025.3.24]: https://github.com/miarec/miarec_s3fs/compare/v2025.3.23...v2025.3.24
+
+### Changed
+
+- Do not check a presense of parent directory when opening files in non-strict mode
+    As directories in S3 are a virtual concept, they may not exist as individual objects.
+
 ## [v2025.3.23] - 2025-03-23
 
 [v2025.3.23]: https://github.com/miarec/miarec_s3fs/compare/v2024.1.1...v2025.3.23
