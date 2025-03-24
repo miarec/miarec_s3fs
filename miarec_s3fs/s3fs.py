@@ -41,8 +41,6 @@ class S3FS(FS):
         default).
     :param str aws_session_token:
     :param str region: Optional S3 region.
-    :param str delimiter: The delimiter to separate folders, defaults to
-        a forward slash.
     :param bool strict: When ``True`` (default) S3FS will follow the
         PyFilesystem specification exactly. Set to ``False`` to disable
         validation of destination paths which may speed up uploads /
@@ -105,7 +103,6 @@ class S3FS(FS):
         aws_session_token=None,
         endpoint_url=None,
         region=None,
-        delimiter="/",
         strict=True,
         cache_control=None,
         acl=None,
@@ -127,7 +124,6 @@ class S3FS(FS):
         self.aws_session_token = aws_session_token
         self.endpoint_url = endpoint_url
         self.region = region
-        self.delimiter = delimiter
         self.strict = strict
         self._tlocal = threading.local()
         if cache_control or acl:
@@ -147,7 +143,6 @@ class S3FS(FS):
             self._bucket_name,
             dir_path=(self.dir_path, "/"),
             region=(self.region, None),
-            delimiter=(self.delimiter, "/"),
         )
 
     def __str__(self):
@@ -157,7 +152,7 @@ class S3FS(FS):
         """Converts an fs path to a s3 key."""
         _path = relpath(normpath(path))
         _key = (
-            "{}/{}".format(self._prefix, _path).lstrip("/").replace("/", self.delimiter)
+            "{}/{}".format(self._prefix, _path).lstrip("/")
         )
         return _key
 
@@ -167,22 +162,21 @@ class S3FS(FS):
         _key = (
             forcedir("{}/{}".format(self._prefix, _path))
             .lstrip("/")
-            .replace("/", self.delimiter)
         )
         return _key
 
     def _key_to_path(self, key):
-        return key.replace(self.delimiter, "/")
+        return key
 
     def _get_object(self, path, key):
-        _key = key.rstrip(self.delimiter)
+        _key = key.rstrip("/")
         try:
             with s3errors(path):
                 obj = self.s3.Object(self._bucket_name, _key)
                 obj.load()
         except errors.ResourceNotFound:
             with s3errors(path):
-                obj = self.s3.Object(self._bucket_name, _key + self.delimiter)
+                obj = self.s3.Object(self._bucket_name, _key + "/")
                 obj.load()
                 return obj
         else:
@@ -236,7 +230,7 @@ class S3FS(FS):
         key = obj.key
         path = self._key_to_path(key)
         name = basename(path.rstrip("/"))
-        is_dir = key.endswith(self.delimiter)
+        is_dir = key.endswith("/")
         info = {"basic": {"name": name, "is_dir": is_dir}}
         if "details" in namespaces:
             _type = int(ResourceType.directory if is_dir else ResourceType.file)
@@ -321,7 +315,7 @@ class S3FS(FS):
         paginator = self.client.get_paginator("list_objects")
         with s3errors(path):
             _paginate = paginator.paginate(
-                Bucket=self._bucket_name, Prefix=_s3_key, Delimiter=self.delimiter
+                Bucket=self._bucket_name, Prefix=_s3_key, Delimiter="/"
             )
             _directory = []
             for result in _paginate:
@@ -330,7 +324,7 @@ class S3FS(FS):
                     _prefix = prefix.get("Prefix")
                     _name = _prefix[prefix_len:]
                     if _name:
-                        _directory.append(_name.rstrip(self.delimiter))
+                        _directory.append(_name.rstrip("/"))
                 for obj in result.get("Contents", ()):
                     name = obj["Key"][prefix_len:]
                     if name:
@@ -563,7 +557,7 @@ class S3FS(FS):
 
         paginator = self.client.get_paginator("list_objects")
         _paginate = paginator.paginate(
-            Bucket=self._bucket_name, Prefix=_s3_key, Delimiter=self.delimiter
+            Bucket=self._bucket_name, Prefix=_s3_key, Delimiter="/"
         )
 
         def gen_info():
@@ -575,7 +569,7 @@ class S3FS(FS):
                     if _name:
                         info = {
                             "basic": {
-                                "name": _name.rstrip(self.delimiter),
+                                "name": _name.rstrip("/"),
                                 "is_dir": True,
                             }
                         }
