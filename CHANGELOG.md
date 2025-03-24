@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [v2025.3.25] - 2025-03-25
+
+[v2025.3.25]: https://github.com/miarec/miarec_s3fs/compare/v2025.3.24...v2025.3.25
+
+### Changed
+
+- Restore the old behavior of isdir() method
+
 ## [v2025.3.24] - 2025-03-24
 
 [v2025.3.24]: https://github.com/miarec/miarec_s3fs/compare/v2025.3.23...v2025.3.24
